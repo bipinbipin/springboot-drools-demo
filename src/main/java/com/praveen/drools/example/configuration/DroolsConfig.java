@@ -1,14 +1,17 @@
 package com.praveen.drools.example.configuration;
 
-import com.praveen.drools.example.service.CustomerCategorizeService;
+import com.praveen.drools.example.service.RuleService;
 import org.kie.api.KieServices;
-import org.kie.api.builder.KieBuilder;
-import org.kie.api.builder.KieFileSystem;
-import org.kie.api.builder.KieModule;
+import org.kie.api.builder.*;
 import org.kie.api.runtime.KieContainer;
 import org.kie.internal.io.ResourceFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
+
+import java.io.IOException;
 
 /**
  * Drools Config.
@@ -17,21 +20,45 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class DroolsConfig {
 
-    private static final String RULES_CUSTOMER_RULES_DRL = "rules/customer-category.drl";
+    private static final String RULES_PATH = "rules/";
 
     @Bean
-    public KieContainer kieContainer() {
-        final KieServices kieServices = KieServices.Factory.get();
-        KieFileSystem kieFileSystem = kieServices.newKieFileSystem();
-        kieFileSystem.write(ResourceFactory.newClassPathResource(RULES_CUSTOMER_RULES_DRL));
-        KieBuilder kb = kieServices.newKieBuilder(kieFileSystem);
-        kb.buildAll();
-        KieModule kieModule = kb.getKieModule();
-        return kieServices.newKieContainer(kieModule.getReleaseId());
+    public KieFileSystem kieFileSystem() throws IOException {
+        KieFileSystem kieFileSystem = getKieServices().newKieFileSystem();
+        for (Resource file : getRuleFiles()) {
+            kieFileSystem.write(ResourceFactory.newClassPathResource(RULES_PATH + file.getFilename(), "UTF-8"));
+        }
+
+        return kieFileSystem;
+    }
+
+    private Resource[] getRuleFiles() throws IOException {
+        ResourcePatternResolver resourcePatternResolver = new PathMatchingResourcePatternResolver();
+        return resourcePatternResolver.getResources("classpath*:" + RULES_PATH + "**/*.*");
     }
 
     @Bean
-    public CustomerCategorizeService customerCategorizeService(KieContainer kieContainer) {
-        return new CustomerCategorizeService(kieContainer);
+    public KieContainer kieContainer() throws IOException {
+        final KieRepository kieRepository = getKieServices().getRepository();
+
+        kieRepository.addKieModule(new KieModule() {
+            public ReleaseId getReleaseId() {
+                return kieRepository.getDefaultReleaseId();
+            }
+        });
+
+        KieBuilder kieBuilder = getKieServices().newKieBuilder(kieFileSystem());
+        kieBuilder.buildAll();
+
+        return getKieServices().newKieContainer(kieRepository.getDefaultReleaseId());
+    }
+
+    private KieServices getKieServices() {
+        return KieServices.Factory.get();
+    }
+
+    @Bean
+    public RuleService ruleService(KieContainer kieContainer) {
+        return new RuleService(kieContainer);
     }
 }

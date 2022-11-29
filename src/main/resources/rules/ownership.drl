@@ -1,0 +1,11 @@
+import com.praveen.drools.example.model.Resource
+global com.praveen.drools.example.model.AccountableParty accountableParty;
+
+rule "Indeed U" agenda-group "ownership"
+    when
+        Resource(key == "INDEEDU")
+    then
+    System.out.println(drools.getRule().getName() +": rule fired");
+        accountableParty.setId("Indeed U");
+        accountableParty.setType("TEAM");
+end

@@ -10,6 +10,7 @@ import java.util.StringJoiner;
 public class CustomerType {
 
     private CustomerCategory customerType;
+    public CustomerType() {}
 
     public CustomerCategory getCustomerType() {
         return customerType;
